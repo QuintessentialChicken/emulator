@@ -9,10 +9,11 @@ class chip8 {
 public:
     chip8();
     ~chip8() = default;
-    // bool draw_flag;
+    bool draw_flag;
     void emulate_cycle();
     bool load_application(const char * filename);
     bool stop_flag = false;
+    std::array<unsigned char, 64 * 32> screen;
 private:
     unsigned short opcode;
     std::array<unsigned char, 4096> memory;
