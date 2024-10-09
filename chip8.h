@@ -2,6 +2,7 @@
 
 #define CHIP8_H
 #include <array>
+#include <random>
 #include <stack>
 
 
@@ -22,8 +23,10 @@ private:
     unsigned short pc;
     unsigned short sp;
     std::stack<unsigned short> stack;
-    // unsigned char delay_timer;
-    // unsigned char sound_timer;
+    unsigned char delay_timer;
+    unsigned char sound_timer;
     std::array<unsigned char, 16> key;
+    std::mt19937 rng;
+    std::uniform_int_distribution<> dist;
 };
 #endif //CHIP8_H
