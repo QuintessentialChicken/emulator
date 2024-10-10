@@ -29,8 +29,8 @@ unsigned char chip8_fontset[80] =
     0xF0, 0x80, 0xF0, 0x80, 0x80 // F
 };
 
-chip8::chip8() : draw_flag{true}, screen{}, opcode{0}, memory{}, V{}, I{0}, pc{0x200}, sp{0}, delay_timer{},
-                 sound_timer{}, key{}, rng{std::random_device{}()}, dist{1, 255} {
+chip8::chip8() : draw_flag{true}, screen{}, keys{}, opcode{0}, memory{}, V{}, I{0}, pc{0x200}, sp{0},
+                 delay_timer{}, sound_timer{}, rng{std::random_device{}()}, dist{1, 255} {
     for (int i = 0; i < 80; ++i) {
         memory[i] = chip8_fontset[i];
     }
@@ -216,12 +216,21 @@ void chip8::emulate_cycle() {
         case 0xE000:
             switch (opcode & 0x000F) {
                 case 0x000E:
-                    //TODO
                     std::cout << "Skip next instruction if key stored in V" << ((opcode & 0x0F00) >> 8) << "is pressed" << std::endl;
+                    if (V.at((opcode & 0x0F00) >> 8) != 0) {
+                        pc += 4;
+                    } else {
+                        pc += 2;
+                    }
                     break;
                 case 0x0001:
-                    //TODO
                     std::cout << "Skip next instruction if key stored in V" << ((opcode & 0x0F00) >> 8) << "is not pressed" << std::endl;
+                    if (V.at((opcode & 0x0F00) >> 8) == 0) {
+                        std::cout << "Yey, pressed: " << std::hex << ((opcode & 0x0F00) >> 8) << std::endl;
+                        pc += 4;
+                    } else {
+                        pc += 2;
+                    }
                     break;
                 default:
                     std::cout << "Unknown opcode: " << std::hex << opcode << std::endl;
@@ -234,10 +243,20 @@ void chip8::emulate_cycle() {
                     V.at((opcode & 0x0F00) >> 8) = delay_timer;
                     pc += 2;
                     break;
-                case 0x000A:
-                    //TODO
+                case 0x000A: {
                     std::cout << "Await keypress, then store it in V" << ((opcode & 0x0F00) >> 8) << " (Blocking Operation)" << std::endl;
-                    break;
+
+                    bool key_pressed = false;
+                    for (int i = 0; i < 16; i++) {
+                        if (keys.at(i) != 0) {
+                            V.at((opcode & 0x0F00) >> 8) = i;
+                            key_pressed = true;
+                        }
+                    }
+                    if (!key_pressed) return;
+                    pc += 2;
+                }
+                break;
                 case 0x0015:
                     std::cout << "Set delay timer to V" << ((opcode & 0x0F00) >> 8) << std::endl;
                     delay_timer = V.at((opcode & 0x0F00) >> 8);

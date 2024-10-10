@@ -15,6 +15,7 @@ public:
     bool load_application(const char * filename);
     bool stop_flag = false;
     std::array<unsigned char, 64 * 32> screen;
+    std::array<unsigned char, 16> keys;
 private:
     unsigned short opcode;
     std::array<unsigned char, 4096> memory;
@@ -25,7 +26,6 @@ private:
     std::stack<unsigned short> stack;
     unsigned char delay_timer;
     unsigned char sound_timer;
-    std::array<unsigned char, 16> key;
     std::mt19937 rng;
     std::uniform_int_distribution<> dist;
 };
