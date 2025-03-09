@@ -3,14 +3,10 @@ project(emulator)
 
 set(CMAKE_CXX_STANDARD 26)
 
-set(SDL3_PATH "C:\\Users\\Lms\\Documents\\Programmieren\\SDL3-3.1.3")
-include_directories(${SDL3_PATH}/include)
-set(SDL3_LIB_DIR ${SDL3_PATH}/lib/x64)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
 
 add_executable(emulator main.cpp chip8.cpp chip8.h)
 
-target_link_libraries(emulator ${SDL3_LIB_DIR}/SDL3.lib)
-add_custom_command(TARGET emulator POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${SDL3_LIB_DIR}/SDL3.dll $<TARGET_FILE_DIR:emulator>)
-
+target_link_libraries(emulator PRIVATE SDL3::SDL3)

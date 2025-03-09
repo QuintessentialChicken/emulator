@@ -1,13 +1,11 @@
 #include "chip8.h"
 
+#include <filesystem>
 #include <fstream>
 
 #include <iostream>
 
 #include <ostream>
-#include <bits/fs_fwd.h>
-#include <bits/fs_path.h>
-#include <bits/random.h>
 
 unsigned char chip8_fontset[80] =
 {
