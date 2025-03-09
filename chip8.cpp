@@ -201,6 +201,7 @@ void chip8::emulate_cycle() {
             for (unsigned short yline = 0; yline < (opcode & 0x000F); yline++) {
                 const unsigned short pixel = memory[I + yline];
                 for (unsigned short xline = 0; xline < 8; xline++) {
+                    // TODO Changing this to (pixel & 0x80 >> line != 0) changes the output by a lot
                     if (pixel & 0x80 >> xline) {
                         if (screen.at(V.at((opcode & 0x0F00) >> 8) + xline + (V.at((opcode & 0x00F0) >> 4) + yline) * 64) == 1) {
                             V.at(0xF) = 1;
@@ -226,7 +227,7 @@ void chip8::emulate_cycle() {
                 case 0x0001:
                     std::cout <<"Skip next instruction if key stored in V" << ((opcode & 0x0F00) >> 8) << "is not pressed" << std::endl;
                     if (keys.at(V.at((opcode & 0x0F00) >> 8) == 0)) {
-                        std::cout <<"Yey, pressed: " << std::hex << ((opcode & 0x0F00) >> 8) << std::endl;
+                        std::cout <<"Skipping, not pressed: " << std::hex << ((opcode & 0x0F00) >> 8) << std::endl;
                         pc += 4;
                     } else {
                         pc += 2;
