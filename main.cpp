@@ -11,8 +11,8 @@ int SCREEN_HEIGHT = 32;
 
 //TODO Input is not working yet
 std::unordered_map<SDL_Scancode, int> key_mapping = {
-    { SDL_SCANCODE_0, 0x1 }, { SDL_SCANCODE_2, 0x2 }, { SDL_SCANCODE_3, 0x3 }, { SDL_SCANCODE_4, 0xC },
-    { SDL_SCANCODE_G, 0x4 }, { SDL_SCANCODE_W, 0x5 }, { SDL_SCANCODE_E, 0x6 }, { SDL_SCANCODE_R, 0xD },
+    { SDL_SCANCODE_1, 0x1 }, { SDL_SCANCODE_2, 0x2 }, { SDL_SCANCODE_3, 0x3 }, { SDL_SCANCODE_4, 0xC },
+    { SDL_SCANCODE_Q, 0x4 }, { SDL_SCANCODE_W, 0x5 }, { SDL_SCANCODE_E, 0x6 }, { SDL_SCANCODE_R, 0xD },
     { SDL_SCANCODE_A, 0x7 }, { SDL_SCANCODE_S, 0x8 }, { SDL_SCANCODE_D, 0x9 }, { SDL_SCANCODE_F, 0xE },
     { SDL_SCANCODE_Z, 0xA }, { SDL_SCANCODE_X, 0x0 }, { SDL_SCANCODE_C, 0xB }, { SDL_SCANCODE_V, 0xF }
 };
@@ -46,6 +46,7 @@ int main() {
             else if (event.type == SDL_EVENT_KEY_DOWN) {
                 if (key_mapping.contains(event.key.scancode)) {
                     emulator.keys.at(key_mapping.at(event.key.scancode)) = 1;
+                    std::cout << "Key down: " << key_mapping.at(event.key.scancode) << std::endl;
                 }
 
                 if (event.key.scancode == SDL_SCANCODE_ESCAPE) {
@@ -55,6 +56,7 @@ int main() {
             else if (event.type == SDL_EVENT_KEY_UP) {
                 if (key_mapping.contains(event.key.scancode)) {
                     emulator.keys.at(key_mapping.at(event.key.scancode)) = 0;
+                    std::cout << "Key up: " << key_mapping.at(event.key.scancode) << std::endl;
                 }
             }
         }
