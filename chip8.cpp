@@ -56,7 +56,7 @@ bool chip8::load_application(const char *filename) {
     input.read(reinterpret_cast<std::istream::char_type *>(memory.data() + 512), static_cast<long long>(file_size(std::filesystem::path(filename))));
     return true;
 }
-
+// TODO Exiting the screen with the paddle crashes the program
 void chip8::emulate_cycle() {
     if (pc >= 4096) {
         stop_flag = true;
