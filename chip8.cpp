@@ -1,336 +1,464 @@
+///////////////////////////////////////////////////////////////////////////////
+// Project description
+// ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+// Name: myChip8
+//
+// Author: Laurence Muller
+// Contact: laurence.muller@gmail.com
+//
+// License: GNU General Public License (GPL) v2 
+// ( http://www.gnu.org/licenses/old-licenses/gpl-2.0.html )
+//
+// Copyright (C) 2011 Laurence Muller / www.multigesture.net
+///////////////////////////////////////////////////////////////////////////////
+
 #include "chip8.h"
-
-#include <filesystem>
-#include <fstream>
-
-#include <iostream>
-
-#include <ostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 unsigned char chip8_fontset[80] =
-{
-    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-    0x20, 0x60, 0x20, 0x20, 0x70, // 1
-    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-    0xF0, 0x80, 0xF0, 0x80, 0x80 // F
+{ 
+    0xF0, 0x90, 0x90, 0x90, 0xF0, //0
+    0x20, 0x60, 0x20, 0x20, 0x70, //1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, //2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, //3
+    0x90, 0x90, 0xF0, 0x10, 0x10, //4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, //5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, //6
+    0xF0, 0x10, 0x20, 0x40, 0x40, //7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, //8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, //9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, //A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, //B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, //C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, //D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, //E
+    0xF0, 0x80, 0xF0, 0x80, 0x80  //F
 };
 
 chip8::chip8()
-    : draw_flag{true},
-      screen{},
-      keys{},
-      opcode{0},
-      memory{},
-      V{},
-      I{0},
-      pc{0x200},
-      delay_timer{},
-      sound_timer{},
-      rng{std::random_device{}()},
-      dist{1, 255} {
-
-    for (int i = 0; i < 80; ++i) {
-        memory.at(i) = chip8_fontset[i];
-    }
-    // keys.at(0) = 1;
+{
+	// empty
 }
 
-bool chip8::load_application(const char *filename) {
-    std::ifstream input(filename, std::ios::binary);
-    if (!input) {
-        std::cout << "Failed to open file " << filename << std::endl;
-        return false;
-    }
-    input.read(reinterpret_cast<std::istream::char_type *>(memory.data() + 512), static_cast<long long>(file_size(std::filesystem::path(filename))));
-    return true;
+chip8::~chip8()
+{
+	// empty
 }
 
-void chip8::emulate_cycle() {
-    if (pc >= 4096) {
-        stop_flag = true;
-        return;
-    }
-    opcode = memory[pc] << 8 | memory[pc + 1];
-    std::cout << std::hex << opcode << ": ";
+void chip8::init()
+{
+	pc		= 0x200;		// Program counter starts at 0x200 (Start adress program)
+	opcode	= 0;			// Reset current opcode	
+	I		= 0;			// Reset index register
+	sp		= 0;			// Reset stack pointer
 
-    switch (opcode & 0xF000) {
-        case 0x0000:
-            switch (opcode & 0x000F) {
-                case 0x0000:
-                    std::cout << "Clear screen" << std::endl;
-                    for (int i = 0; i < 2048; ++i)
-                        screen.at(i) = 0x0;
-                    draw_flag = true;
-                    pc += 2;
-                    break;
-                case 0x000E:
-                    std::cout << "Return from subroutine" << std::endl;
-                    pc = stack.top();
-                    stack.pop();
-                    pc += 2;
-                    break;
-                default:
-                    std::cout << "Unknown opcode: " << opcode << std::endl;
-                    break;
-            }
-            break;
-        case 0x1000:
-            std::cout << "Jump to address " << (opcode & 0x0FFF) << std::endl;
-            pc = opcode & 0x0FFF;
-            break;
-        case 0x2000:
-            std::cout << "Call subroutine at " << (opcode & 0x0FFF) << std::endl;
-            stack.push(pc);
-            pc = opcode & 0x0FFF;
-            break;
-        case 0x3000:
-            std::cout << "Skip next instruction if V" << ((opcode & 0x0F00) >> 8) << " equals " << (opcode & 0x00FF) << std::endl;
-            if (V.at((opcode & 0x0F00) >> 8) == (opcode & 0x00FF)) pc += 4;
-            else pc += 2;
-            break;
-        case 0x4000:
-            std::cout << "Skip next instruction if V" << ((opcode & 0x0F00) >> 8) << " does not equal " << (opcode & 0x00FF) << std::endl;
-            if (V.at((opcode & 0x0F00) >> 8) != (opcode & 0x00FF)) pc += 4;
-            else pc += 2;
-            break;
-        case 0x5000:
-            std::cout << "Skip next instruction if V" << ((opcode & 0x0F00) >> 8) << " equals " << "V" << ((opcode & 0x00F0) >> 4) << std::endl;
-            if (V.at((opcode & 0x0F00) >> 8) == V.at((opcode & 0x00F0) >> 4)) pc += 4;
-            else pc += 2;
-            break;
-        case 0x6000:
-            std::cout << "Set V" << ((opcode & 0x0F00) >> 8) << " to " << (opcode & 0x00FF) << std::endl;
-            V.at((opcode & 0x0F00) >> 8) = opcode & 0x00FF;
-            pc += 2;
-            break;
-        case 0x7000:
-            std::cout << "Add V" << (opcode & 0x00FF) << " to " << ((opcode & 0x0F00) >> 8) << std::endl;
-            V.at((opcode & 0x0F00) >> 8) += opcode & 0x00FF;
-            pc += 2;
-            break;
-        case 0x8000:
-            switch (opcode & 0x00F) {
-                case 0x0000:
-                    std::cout << "Set V" << ((opcode & 0x0F00) >> 8) << " to the value of " << "V" << ((opcode & 0x00F0) >> 4) << std::endl;
-                    V.at((opcode & 0x0F00) >> 8) = (opcode & 0x00F0) >> 4;
-                    pc += 2;
-                    break;
-                case 0x0001:
-                    std::cout << "Set V" << ((opcode & 0x0F00) >> 8) << " to V" << ((opcode & 0x0F00) >> 8) << " OR V" << ((opcode & 0x00F0) >> 4) << std::endl;
-                    V.at((opcode & 0x0F00) >> 8) |= (opcode & 0x00F0) >> 4;
-                    pc += 2;
-                    break;
-                case 0x0002:
-                    std::cout << "Set V" << ((opcode & 0x0F00) >> 8) << " to V" << ((opcode & 0x0F00) >> 8) << " AND V" << ((opcode & 0x0F00) >> 4) << std::endl;
-                    V.at((opcode & 0x0F00) >> 8) &= (opcode & 0x00F0) >> 4;
-                    pc += 2;
-                    break;
-                case 0x0003:
-                    std::cout << "Set V" << ((opcode & 0x0F00) >> 8) << " to V" << ((opcode & 0x0F00) >> 8) << " XOR V" << ((opcode & 0x0F00) >> 4) << std::endl;
-                    V.at((opcode & 0x0F00) >> 8) ^= (opcode & 0x00F0) >> 4;
-                    break;
-                case 0x0004:
-                    std::cout << "Add V" << ((opcode & 0x00F0) >> 4) << " to V" << ((opcode & 0x0F00) >> 8) << ". VF is set to 1 for overflow and 0 for no overflow" << std::endl;
-                    if (V.at((opcode & 0x00F0) >> 4) > 0xFF - V.at((opcode & 0x0F00) >> 8)) {
-                        V.at(0xF) = 1;
-                    } else {
-                        V.at(0xF) = 0;
-                    }
-                    V.at((opcode & 0x0F00) >> 8) += V.at((opcode & 0x00F0) >> 4);
-                    pc += 2;
-                    break;
-                case 0x0005:
-                    std::cout << "Subtract V" << ((opcode & 0x0F00) >> 4) << " from V" << ((opcode & 0x0F00) >> 8) << ". Set VF to 0 for underflow and 0 for no underflow" << std::endl;
-                    if (V.at((opcode & 0x00F0) >> 4) > V.at((opcode & 0x0F00) >> 8)) {
-                        V.at(0xF) = 0;
-                    } else {
-                        V.at(0xF) = 1;
-                    }
-                    V.at((opcode & 0x0F00) >> 8) -= V.at((opcode & 0x00F0) >> 4);
-                    pc += 2;
-                    break;
-                case 0x0006:
-                    std::cout << "Shift V" << ((opcode & 0x0F00) >> 8) << " to the right by 1, then store the least significant bit prior to the shift in VF" << std::endl;
-                    V.at(0xF) = V.at((opcode & 0x0F00) >> 8) & 0x1;
-                    V.at((opcode & 0x0F00) >> 8) >>= 1;
-                    pc += 2;
-                    break;
-                case 0x0007:
-                    std::cout << "Set V" << ((opcode & 0x0F00) >> 8) << " to V" << ((opcode & 0x00F0) >> 4) << " - " << ((opcode & 0x0F00) >> 8) << ". VF is set to 0 for underflow and 1 for no underflow" << std::endl;
-                    if (V.at((opcode & 0x0F00) >> 8) > V.at((opcode & 0x0F00) >> 8)) {
-                        V.at(0xF) = 0;
-                    } else {
-                        V.at(0xF) = 1;
-                    }
-                    V.at((opcode & 0x0F00) >> 8) = V.at((opcode & 0x00F0) >> 4) - V.at((opcode & 0x0F00) >> 8);
-                    pc += 2;
-                    break;
-                case 0x000E:
-                    std::cout << "Shift V" << ((opcode & 0x0F00) >> 8) << " to the left by 1. Set VF to 1 if most significant bit was set, 0 otherwise" << std::endl;
-                    V.at(0xF) = V.at((opcode & 0x0F00) >> 8) >> 7;
-                    V.at((opcode & 0x0F00) >> 8) <<= 1;
-                    pc += 2;
-                    break;
-                default:
-                    std::cout << "Unknown opcode: " << std::hex << opcode << std::endl;
-            }
-            break;
-        case 0x9000:
-            std::cout << "Skip next instruction if V" << ((opcode & 0x0F00) >> 8) << " does not equal " << "V" << ((opcode & 0x00F0) >> 4) << std::endl;
-            if (V.at((opcode & 0x0F00) >> 8) != V.at((opcode & 0x00F0) >> 4)) pc += 4;
-            else pc += 2;
-            break;
-        case 0xA000:
-            std::cout << "Set I to address " << (opcode & 0x0FFF) << std::endl;
-            I = opcode & 0x0FFF;
-            pc += 2;
-            break;
-        case 0xB000:
-            std::cout << "Jump to address " << (opcode & 0x0FFF) << " + V0" << std::endl;
-            pc = (opcode & 0x0FFF) + V.at(0);
-            break;
-        case 0xC000:
-            std::cout << "Set V" << ((opcode & 0x0F00) >> 8) << " to the result of bitwise AND on random number and " << (opcode & 0x00FF) << std::endl;
-            V.at((opcode & 0x0F00) >> 8) = dist(rng) & (opcode & 0x00FF);
-            pc += 2;
-            break;
-        case 0xD000: {
-            std::cout << "Draw a sprite with width 8 and height " << (opcode & 0x000F) << " at V" << ((opcode & 0x0F00) >> 8) << ", V" << ((opcode & 0x00F0) >> 4) << ")" << std::endl;
-            const unsigned short x = V.at((opcode & 0x0F00) >> 8);
-            const unsigned short y = V.at((opcode & 0x00F0) >> 4);
-            V.at(0xF) = 0;
-            // Iterate through each sprite row
-            for (int yline = 0; yline < (opcode & 0x000F); yline++) {
-                // Fetch row (in the form of one unsigned short) from memory. Each bit in the short represents one pixel in the row
-                const unsigned short row = memory[I + yline];
-                // Iterate through each pixel in the row
-                for (int xline = 0; xline < 8; xline++) {
-                    // Check if the pixel is set (selecting the pixel with AND and 0x80 (one bit set to 1)). If not, we don't need to do anything
-                    // Pixels are turned off by setting 1 on a pixel that's already 1
-                    if ((row & (0x80 >> xline)) != 0) {
-                        // Check if the corresponding pixel in memory is
-                        if (screen.at(x + xline + (y + yline) * 64) == 1) {
-                            V.at(0xF) = 1;
-                        }
-                        screen.at(x + xline + (y + yline) * 64) ^= 1;
-                    }
-                }
-            }
-            draw_flag = true;
-            pc += 2;
-        }
-        break;
-        case 0xE000:
-            switch (opcode & 0x000F) {
-                case 0x000E:
-                    std::cout << "Skip next instruction if key stored in V" << ((opcode & 0x0F00) >> 8) << "is pressed" << std::endl;
-                    if (keys.at(V.at((opcode & 0x0F00) >> 8) != 0)) {
-                        pc += 4;
-                    } else {
-                        pc += 2;
-                    }
-                    break;
-                case 0x0001:
-                    std::cout << "Skip next instruction if key stored in V" << ((opcode & 0x0F00) >> 8) << "is not pressed" << std::endl;
-                    if (keys.at(V.at((opcode & 0x0F00) >> 8)) == 0) {
-                        std::cout << "Skipping, not pressed: " << std::hex << ((opcode & 0x0F00) >> 8) << std::endl;
-                        pc += 4;
-                    } else {
-                        pc += 2;
-                    }
-                    break;
-                default:
-                    std::cout << "Unknown opcode: " << std::hex << opcode << std::endl;
-            }
-            break;
-        case 0xF000:
-            switch (opcode & 0x00FF) {
-                case 0x0007:
-                    std::cout << "Set V" << ((opcode & 0x0F00) >> 8) << " to value of delay timer" << std::endl;
-                    V.at((opcode & 0x0F00) >> 8) = delay_timer;
-                    pc += 2;
-                    break;
-                case 0x000A: {
-                    std::cout << "Await keypress, then store it in V" << ((opcode & 0x0F00) >> 8) << " (Blocking Operation)" << std::endl;
+	// Clear display
+	for(int i = 0; i < 2048; ++i)
+		gfx[i] = 0;
 
-                    bool key_pressed = false;
-                    for (int i = 0; i < 16; i++) {
-                        if (keys.at(i) != 0) {
-                            V.at((opcode & 0x0F00) >> 8) = i;
-                            key_pressed = true;
-                        }
-                    }
-                    if (!key_pressed) return;
-                    pc += 2;
-                }
-                break;
-                case 0x0015:
-                    std::cout << "Set delay timer to V" << ((opcode & 0x0F00) >> 8) << std::endl;
-                    delay_timer = V.at((opcode & 0x0F00) >> 8);
-                    pc += 2;
-                    break;
-                case 0x0018:
-                    std::cout << "Set sound timer to V" << ((opcode & 0x0F00) >> 8) << std::endl;
-                    sound_timer = V.at((opcode & 0x0F00) >> 8);
-                    pc += 2;
-                    break;
-                case 0x001E:
-                    std::cout << "Add V" << ((opcode & 0x0F00) >> 8) << " to I. Does not affect VF" << std::endl;
-                // Set range overflow
-                    if (I + V.at((opcode & 0x0F00) >> 8) > 0xFFF) V.at(0xF) = 1;
-                    else V.at(0xF) = 0;
-                    I += V.at((opcode & 0x0F00) >> 8);
-                    pc += 2;
-                    break;
-                case 0x0029:
-                    std::cout << "Set I to the location of the sprite for the character in V" << ((opcode & 0x0F00) >> 8) << std::endl;
-                    I = V.at((opcode & 0x0F00) >> 8) * 0x5;
-                    pc += 2;
-                    break;
-                case 0x0033:
-                    std::cout << "Store the binary-coded decimal representation of V" << ((opcode & 0x0F00) >> 8) << ", with the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2" << std::endl;
-                    memory.at(I) = V.at((opcode & 0x0F00) >> 8) / 100;
-                    memory.at(I + 1) = V.at((opcode & 0x0F00) >> 8) / 10 % 10;
-                    memory.at(I + 2) = V.at((opcode & 0x0F00) >> 8) % 100 % 10;
-                    pc += 2;
-                    break;
-                case 0x0055:
-                    std::cout << "Store from V0 to V " << ((opcode & 0x0F00) >> 8) << " (including V" << ((opcode & 0x0F00) >> 8) << ") in memory, starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified." << std::endl;
-                    for (int i = 0; i < ((opcode & 0x0F00) >> 8) + 1; i++) {
-                        memory.at(I + i) = V.at(i);
-                    }
-                // Set I to I + X + 1 according to original interpreter
-                    I += (opcode & 0x0F00 >> 8) + 1;
-                    pc += 2;
-                    break;
-                case 0x0065:
-                    std::cout << "Fill from V0 to V " << ((opcode & 0x0F00) >> 8) << " (including V" << ((opcode & 0x0F00) >> 8) << ") with values from memory, starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified." << std::endl;
-                    for (int i = 0; i < ((opcode & 0x0F00) >> 8) + 1; i++) {
-                        V.at(i) = memory.at(I + i);
-                    }
-                    I += (opcode & 0x0F00 >> 8) + 1;
-                    pc += 2;
-                    break;
-                default:
-                    std::cout << "Unknown opcode: " << std::hex << opcode << std::endl;
-            }
-            break;
-        default:
-            std::cout << "Unknown opcode: " << std::hex << opcode << std::endl;
-    }
+	// Clear stack
+	for(int i = 0; i < 16; ++i)
+		stack[i] = 0;
 
-    if (delay_timer > 0) delay_timer--;
-    if (sound_timer > 0) sound_timer--;
+	for(int i = 0; i < 16; ++i)
+		key[i] = V[i] = 0;
+
+	// Clear memory
+	for(int i = 0; i < 4096; ++i)
+		memory[i] = 0;
+					
+	// Load fontset
+	for(int i = 0; i < 80; ++i)
+		memory[i] = chip8_fontset[i];		
+
+	// Reset timers
+	delay_timer = 0;
+	sound_timer = 0;
+
+	// Clear screen once
+	drawFlag = true;
+
+	srand (time(NULL));
+}
+
+void chip8::emulateCycle()
+{
+	// Fetch opcode
+	opcode = memory[pc] << 8 | memory[pc + 1];
+	
+	// Process opcode
+	switch(opcode & 0xF000)
+	{		
+		case 0x0000:
+			switch(opcode & 0x000F)
+			{
+				case 0x0000: // 0x00E0: Clears the screen
+					for(int i = 0; i < 2048; ++i)
+						gfx[i] = 0x0;
+					drawFlag = true;
+					pc += 2;
+				break;
+
+				case 0x000E: // 0x00EE: Returns from subroutine
+					--sp;			// 16 levels of stack, decrease stack pointer to prevent overwrite
+					pc = stack[sp];	// Put the stored return address from the stack back into the program counter					
+					pc += 2;		// Don't forget to increase the program counter!
+				break;
+
+				default:
+					printf ("Unknown opcode [0x0000]: 0x%X\n", opcode);					
+			}
+		break;
+
+		case 0x1000: // 0x1NNN: Jumps to address NNN
+			pc = opcode & 0x0FFF;
+		break;
+
+		case 0x2000: // 0x2NNN: Calls subroutine at NNN.
+			stack[sp] = pc;			// Store current address in stack
+			++sp;					// Increment stack pointer
+			pc = opcode & 0x0FFF;	// Set the program counter to the address at NNN
+		break;
+		
+		case 0x3000: // 0x3XNN: Skips the next instruction if VX equals NN
+			if(V[(opcode & 0x0F00) >> 8] == (opcode & 0x00FF))
+				pc += 4;
+			else
+				pc += 2;
+		break;
+		
+		case 0x4000: // 0x4XNN: Skips the next instruction if VX doesn't equal NN
+			if(V[(opcode & 0x0F00) >> 8] != (opcode & 0x00FF))
+				pc += 4;
+			else
+				pc += 2;
+		break;
+		
+		case 0x5000: // 0x5XY0: Skips the next instruction if VX equals VY.
+			if(V[(opcode & 0x0F00) >> 8] == V[(opcode & 0x00F0) >> 4])
+				pc += 4;
+			else
+				pc += 2;
+		break;
+		
+		case 0x6000: // 0x6XNN: Sets VX to NN.
+			V[(opcode & 0x0F00) >> 8] = opcode & 0x00FF;
+			pc += 2;
+		break;
+		
+		case 0x7000: // 0x7XNN: Adds NN to VX.
+			V[(opcode & 0x0F00) >> 8] += opcode & 0x00FF;
+			pc += 2;
+		break;
+		
+		case 0x8000:
+			switch(opcode & 0x000F)
+			{
+				case 0x0000: // 0x8XY0: Sets VX to the value of VY
+					V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x00F0) >> 4];
+					pc += 2;
+				break;
+
+				case 0x0001: // 0x8XY1: Sets VX to "VX OR VY"
+					V[(opcode & 0x0F00) >> 8] |= V[(opcode & 0x00F0) >> 4];
+					pc += 2;
+				break;
+
+				case 0x0002: // 0x8XY2: Sets VX to "VX AND VY"
+					V[(opcode & 0x0F00) >> 8] &= V[(opcode & 0x00F0) >> 4];
+					pc += 2;
+				break;
+
+				case 0x0003: // 0x8XY3: Sets VX to "VX XOR VY"
+					V[(opcode & 0x0F00) >> 8] ^= V[(opcode & 0x00F0) >> 4];
+					pc += 2;
+				break;
+
+				case 0x0004: // 0x8XY4: Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't					
+					if(V[(opcode & 0x00F0) >> 4] > (0xFF - V[(opcode & 0x0F00) >> 8])) 
+						V[0xF] = 1; //carry
+					else 
+						V[0xF] = 0;					
+					V[(opcode & 0x0F00) >> 8] += V[(opcode & 0x00F0) >> 4];
+					pc += 2;					
+				break;
+
+				case 0x0005: // 0x8XY5: VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't
+					if(V[(opcode & 0x00F0) >> 4] > V[(opcode & 0x0F00) >> 8]) 
+						V[0xF] = 0; // there is a borrow
+					else 
+						V[0xF] = 1;					
+					V[(opcode & 0x0F00) >> 8] -= V[(opcode & 0x00F0) >> 4];
+					pc += 2;
+				break;
+
+				case 0x0006: // 0x8XY6: Shifts VX right by one. VF is set to the value of the least significant bit of VX before the shift
+					V[0xF] = V[(opcode & 0x0F00) >> 8] & 0x1;
+					V[(opcode & 0x0F00) >> 8] >>= 1;
+					pc += 2;
+				break;
+
+				case 0x0007: // 0x8XY7: Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there isn't
+					if(V[(opcode & 0x0F00) >> 8] > V[(opcode & 0x00F0) >> 4])	// VY-VX
+						V[0xF] = 0; // there is a borrow
+					else
+						V[0xF] = 1;
+					V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x00F0) >> 4] - V[(opcode & 0x0F00) >> 8];				
+					pc += 2;
+				break;
+
+				case 0x000E: // 0x8XYE: Shifts VX left by one. VF is set to the value of the most significant bit of VX before the shift
+					V[0xF] = V[(opcode & 0x0F00) >> 8] >> 7;
+					V[(opcode & 0x0F00) >> 8] <<= 1;
+					pc += 2;
+				break;
+
+				default:
+					printf ("Unknown opcode [0x8000]: 0x%X\n", opcode);
+			}
+		break;
+		
+		case 0x9000: // 0x9XY0: Skips the next instruction if VX doesn't equal VY
+			if(V[(opcode & 0x0F00) >> 8] != V[(opcode & 0x00F0) >> 4])
+				pc += 4;
+			else
+				pc += 2;
+		break;
+
+		case 0xA000: // ANNN: Sets I to the address NNN
+			I = opcode & 0x0FFF;
+			pc += 2;
+		break;
+		
+		case 0xB000: // BNNN: Jumps to the address NNN plus V0
+			pc = (opcode & 0x0FFF) + V[0];
+		break;
+		
+		case 0xC000: // CXNN: Sets VX to a random number and NN
+			V[(opcode & 0x0F00) >> 8] = (rand() % 0xFF) & (opcode & 0x00FF);
+			pc += 2;
+		break;
+	
+		case 0xD000: // DXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels. 
+					 // Each row of 8 pixels is read as bit-coded starting from memory location I; 
+					 // I value doesn't change after the execution of this instruction. 
+					 // VF is set to 1 if any screen pixels are flipped from set to unset when the sprite is drawn, 
+					 // and to 0 if that doesn't happen
+		{
+			unsigned short x = V[(opcode & 0x0F00) >> 8];
+			unsigned short y = V[(opcode & 0x00F0) >> 4];
+			unsigned short height = opcode & 0x000F;
+			unsigned short pixel;
+
+			V[0xF] = 0;
+			for (int yline = 0; yline < height; yline++)
+			{
+				pixel = memory[I + yline];
+				for(int xline = 0; xline < 8; xline++)
+				{
+					if((pixel & (0x80 >> xline)) != 0)
+					{
+						if(gfx[(x + xline + ((y + yline) * 64))] == 1)
+						{
+							V[0xF] = 1;                                    
+						}
+						gfx[x + xline + ((y + yline) * 64)] ^= 1;
+					}
+				}
+			}
+						
+			drawFlag = true;			
+			pc += 2;
+		}
+		break;
+			
+		case 0xE000:
+			switch(opcode & 0x00FF)
+			{
+				case 0x009E: // EX9E: Skips the next instruction if the key stored in VX is pressed
+					if(key[V[(opcode & 0x0F00) >> 8]] != 0)
+						pc += 4;
+					else
+						pc += 2;
+				break;
+				
+				case 0x00A1: // EXA1: Skips the next instruction if the key stored in VX isn't pressed
+					if(key[V[(opcode & 0x0F00) >> 8]] == 0)
+						pc += 4;
+					else
+						pc += 2;
+				break;
+
+				default:
+					printf ("Unknown opcode [0xE000]: 0x%X\n", opcode);
+			}
+		break;
+		
+		case 0xF000:
+			switch(opcode & 0x00FF)
+			{
+				case 0x0007: // FX07: Sets VX to the value of the delay timer
+					V[(opcode & 0x0F00) >> 8] = delay_timer;
+					pc += 2;
+				break;
+								
+				case 0x000A: // FX0A: A key press is awaited, and then stored in VX		
+				{
+					bool keyPress = false;
+
+					for(int i = 0; i < 16; ++i)
+					{
+						if(key[i] != 0)
+						{
+							V[(opcode & 0x0F00) >> 8] = i;
+							keyPress = true;
+						}
+					}
+
+					// If we didn't received a keypress, skip this cycle and try again.
+					if(!keyPress)						
+						return;
+
+					pc += 2;					
+				}
+				break;
+				
+				case 0x0015: // FX15: Sets the delay timer to VX
+					delay_timer = V[(opcode & 0x0F00) >> 8];
+					pc += 2;
+				break;
+
+				case 0x0018: // FX18: Sets the sound timer to VX
+					sound_timer = V[(opcode & 0x0F00) >> 8];
+					pc += 2;
+				break;
+
+				case 0x001E: // FX1E: Adds VX to I
+					if(I + V[(opcode & 0x0F00) >> 8] > 0xFFF)	// VF is set to 1 when range overflow (I+VX>0xFFF), and 0 when there isn't.
+						V[0xF] = 1;
+					else
+						V[0xF] = 0;
+					I += V[(opcode & 0x0F00) >> 8];
+					pc += 2;
+				break;
+
+				case 0x0029: // FX29: Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font
+					I = V[(opcode & 0x0F00) >> 8] * 0x5;
+					pc += 2;
+				break;
+
+				case 0x0033: // FX33: Stores the Binary-coded decimal representation of VX at the addresses I, I plus 1, and I plus 2
+					memory[I]     = V[(opcode & 0x0F00) >> 8] / 100;
+					memory[I + 1] = (V[(opcode & 0x0F00) >> 8] / 10) % 10;
+					memory[I + 2] = (V[(opcode & 0x0F00) >> 8] % 100) % 10;					
+					pc += 2;
+				break;
+
+				case 0x0055: // FX55: Stores V0 to VX in memory starting at address I					
+					for (int i = 0; i <= ((opcode & 0x0F00) >> 8); ++i)
+						memory[I + i] = V[i];	
+
+					// On the original interpreter, when the operation is done, I = I + X + 1.
+					I += ((opcode & 0x0F00) >> 8) + 1;
+					pc += 2;
+				break;
+
+				case 0x0065: // FX65: Fills V0 to VX with values from memory starting at address I					
+					for (int i = 0; i <= ((opcode & 0x0F00) >> 8); ++i)
+						V[i] = memory[I + i];			
+
+					// On the original interpreter, when the operation is done, I = I + X + 1.
+					I += ((opcode & 0x0F00) >> 8) + 1;
+					pc += 2;
+				break;
+
+				default:
+					printf ("Unknown opcode [0xF000]: 0x%X\n", opcode);
+			}
+		break;
+
+		default:
+			printf ("Unknown opcode: 0x%X\n", opcode);
+	}	
+
+	// Update timers
+	if(delay_timer > 0)
+		--delay_timer;
+
+	if(sound_timer > 0)
+	{
+		if(sound_timer == 1)
+			printf("BEEP!\n");
+		--sound_timer;
+	}	
+}
+
+void chip8::debugRender()
+{
+	// Draw
+	for(int y = 0; y < 32; ++y)
+	{
+		for(int x = 0; x < 64; ++x)
+		{
+			if(gfx[(y*64) + x] == 0) 
+				printf("O");
+			else 
+				printf(" ");
+		}
+		printf("\n");
+	}
+	printf("\n");
+}
+
+bool chip8::loadApplication(const char * filename)
+{
+	init();
+	printf("Loading: %s\n", filename);
+		
+	// Open file
+	FILE * pFile = fopen(filename, "rb");
+	if (pFile == NULL)
+	{
+		fputs ("File error", stderr); 
+		return false;
+	}
+
+	// Check file size
+	fseek(pFile , 0 , SEEK_END);
+	long lSize = ftell(pFile);
+	rewind(pFile);
+	printf("Filesize: %d\n", (int)lSize);
+	
+	// Allocate memory to contain the whole file
+	char * buffer = (char*)malloc(sizeof(char) * lSize);
+	if (buffer == NULL) 
+	{
+		fputs ("Memory error", stderr); 
+		return false;
+	}
+
+	// Copy the file into the buffer
+	size_t result = fread (buffer, 1, lSize, pFile);
+	if (result != lSize) 
+	{
+		fputs("Reading error",stderr); 
+		return false;
+	}
+
+	// Copy buffer to Chip8 memory
+	if((4096-512) > lSize)
+	{
+		for(int i = 0; i < lSize; ++i)
+			memory[i + 512] = buffer[i];
+	}
+	else
+		printf("Error: ROM too big for memory");
+	
+	// Close file, free buffer
+	fclose(pFile);
+	free(buffer);
+
+	return true;
 }

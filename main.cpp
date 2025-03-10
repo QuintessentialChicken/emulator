@@ -19,7 +19,7 @@ std::unordered_map<SDL_Scancode, int> key_mapping = {
 
 int main() {
     chip8 emulator;
-    emulator.load_application("program.c8");
+    emulator.loadApplication("program.c8");
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         printf("Error: SDL_Init(): %s\n", SDL_GetError());
@@ -45,7 +45,7 @@ int main() {
             }
             else if (event.type == SDL_EVENT_KEY_DOWN) {
                 if (key_mapping.contains(event.key.scancode)) {
-                    emulator.keys.at(key_mapping.at(event.key.scancode)) = 1;
+                    emulator.key[key_mapping.at(event.key.scancode)] = 1;
                     std::cout << "Key down: " << key_mapping.at(event.key.scancode) << std::endl;
                 }
 
@@ -55,19 +55,19 @@ int main() {
             }
             else if (event.type == SDL_EVENT_KEY_UP) {
                 if (key_mapping.contains(event.key.scancode)) {
-                    emulator.keys.at(key_mapping.at(event.key.scancode)) = 0;
+                    emulator.key[key_mapping.at(event.key.scancode)] = 0;
                     std::cout << "Key up: " << key_mapping.at(event.key.scancode) << std::endl;
                 }
             }
         }
-        emulator.emulate_cycle();
-        if (emulator.draw_flag) {
+        emulator.emulateCycle();
+        if (emulator.drawFlag) {
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
             SDL_RenderClear(renderer);
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
             for (int y = 0; y < SCREEN_HEIGHT; y++) {
                 for (int x = 0; x < SCREEN_WIDTH; x++) {
-                    if (emulator.screen.at(y * SCREEN_WIDTH + x) != 0) {
+                    if (emulator.gfx[y * SCREEN_WIDTH + x] != 0) {
                         pixel.x = static_cast<float>(x * PIXEL_SIZE);
                         pixel.y = static_cast<float>(y * PIXEL_SIZE);
                         SDL_RenderFillRect(renderer, &pixel);
@@ -75,7 +75,7 @@ int main() {
                 }
             }
             SDL_RenderPresent(renderer);
-            emulator.draw_flag = false;
+            emulator.drawFlag = false;
         }
         SDL_Delay(16);
     }
