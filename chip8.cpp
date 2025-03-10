@@ -134,7 +134,7 @@ void chip8::emulate_cycle() {
                     break;
                 case 0x0002:
                     std::cout << "Set V" << ((opcode & 0x0F00) >> 8) << " to V" << ((opcode & 0x0F00) >> 8) << " AND V" << ((opcode & 0x0F00) >> 4) << std::endl;
-                    V.at((opcode & 0x0F00) >> 8) &= (opcode & 0x00F0) >> 4;
+                    V.at((opcode & 0x0F00) >> 8) &= V.at((opcode & 0x00F0) >> 4);
                     pc += 2;
                     break;
                 case 0x0003:
@@ -210,21 +210,23 @@ void chip8::emulate_cycle() {
             std::cout << "Draw a sprite with width 8 and height " << (opcode & 0x000F) << " at V" << ((opcode & 0x0F00) >> 8) << ", V" << ((opcode & 0x00F0) >> 4) << ")" << std::endl;
             const unsigned short x = V.at((opcode & 0x0F00) >> 8);
             const unsigned short y = V.at((opcode & 0x00F0) >> 4);
+            const unsigned short height = opcode & 0x000F;
+            unsigned short row;
             V.at(0xF) = 0;
             // Iterate through each sprite row
-            for (int yline = 0; yline < (opcode & 0x000F); yline++) {
+            for (int yline = 0; yline < height; yline++) {
                 // Fetch row (in the form of one unsigned short) from memory. Each bit in the short represents one pixel in the row
-                const unsigned short row = memory[I + yline];
+                row = memory[I + yline];
                 // Iterate through each pixel in the row
                 for (int xline = 0; xline < 8; xline++) {
                     // Check if the pixel is set (selecting the pixel with AND and 0x80 (one bit set to 1)). If not, we don't need to do anything
                     // Pixels are turned off by setting 1 on a pixel that's already 1
                     if ((row & (0x80 >> xline)) != 0) {
                         // Check if the corresponding pixel in memory is
-                        if (screen.at(x + xline + (y + yline) * 64) == 1) {
+                        if (screen.at((x + xline + ((y + yline) * 64))) == 1) {
                             V.at(0xF) = 1;
                         }
-                        screen.at(x + xline + (y + yline) * 64) ^= 1;
+                        screen.at(x + xline + ((y + yline) * 64)) ^= 1;
                     }
                 }
             }
