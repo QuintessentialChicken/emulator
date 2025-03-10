@@ -27,7 +27,7 @@ int main() {
     }
 
     SDL_Window *window = SDL_CreateWindow(
-        "An SDL3 window", // window title
+        "CHIP8", // window title
         SCREEN_WIDTH * PIXEL_SIZE, // width, in pixels
         SCREEN_HEIGHT * PIXEL_SIZE, // height, in pixels
         SDL_WINDOW_OPENGL // flags - see below
