@@ -9,7 +9,6 @@ int SCREEN_WIDTH = 64;
 int SCREEN_HEIGHT = 32;
 
 
-//TODO Input is not working yet
 std::unordered_map<SDL_Scancode, int> key_mapping = {
     { SDL_SCANCODE_1, 0x1 }, { SDL_SCANCODE_2, 0x2 }, { SDL_SCANCODE_3, 0x3 }, { SDL_SCANCODE_4, 0xC },
     { SDL_SCANCODE_Q, 0x4 }, { SDL_SCANCODE_W, 0x5 }, { SDL_SCANCODE_E, 0x6 }, { SDL_SCANCODE_R, 0xD },
@@ -77,7 +76,7 @@ int main() {
             SDL_RenderPresent(renderer);
             emulator.draw_flag = false;
         }
-        SDL_Delay(16);
+        SDL_Delay(1);
     }
 
     // SDL_DestroyTexture(texture);

@@ -206,6 +206,7 @@ void chip8::emulate_cycle() {
             V.at((opcode & 0x0F00) >> 8) = dist(rng) & (opcode & 0x00FF);
             pc += 2;
             break;
+        //TODO Collision is often times not working
         case 0xD000: {
             std::cout << "Draw a sprite with width 8 and height " << (opcode & 0x000F) << " at V" << ((opcode & 0x0F00) >> 8) << ", V" << ((opcode & 0x00F0) >> 4) << ")" << std::endl;
             const unsigned short x = V.at((opcode & 0x0F00) >> 8);
@@ -222,11 +223,12 @@ void chip8::emulate_cycle() {
                     // Check if the pixel is set (selecting the pixel with AND and 0x80 (one bit set to 1)). If not, we don't need to do anything
                     // Pixels are turned off by setting 1 on a pixel that's already 1
                     if ((row & (0x80 >> xline)) != 0) {
+                        int pos = x + xline + ((y + yline) * 64) % (64 * 32);
                         // Check if the corresponding pixel in memory is
-                        if (screen.at((x + xline + ((y + yline) * 64))) == 1) {
+                        if (screen.at(pos) == 1) {
                             V.at(0xF) = 1;
                         }
-                        screen.at(x + xline + ((y + yline) * 64)) ^= 1;
+                        screen.at(pos) ^= 1;
                     }
                 }
             }
